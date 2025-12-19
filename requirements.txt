@@ -1,0 +1,25 @@
+# Flask
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.5
+
+# Base de données
+psycopg2-binary==2.9.9
+SQLAlchemy==2.0.23
+
+# Import CSV
+pandas==2.1.4
+
+# Export
+openpyxl==3.1.2
+xlsxwriter==3.1.9
+
+# Conversion coordonnées Lambert 93 -> GPS
+pyproj==3.6.1
+
+# Utilitaires
+python-dotenv==1.0.0
+click==8.1.7
+
+# Production
+gunicorn==21.2.0

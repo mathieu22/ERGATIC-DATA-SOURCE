@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Statistiques - ERGATIC-DATA-ENTERPRISE{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <h1 class="text-2xl font-bold text-gray-900 mb-6">Statistiques de la base</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <div class="text-4xl font-bold text-primary">{{ "{:,}".format(stats.total_entreprises).replace(",", " ") }}</div>
+            <div class="text-gray-600 mt-1">Entreprises totales</div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <div class="text-4xl font-bold text-green-600">{{ "{:,}".format(stats.entreprises_actives).replace(",", " ") }}</div>
+            <div class="text-gray-600 mt-1">Entreprises actives</div>
+            <div class="text-sm text-gray-500 mt-2">
+                {{ "%.1f"|format(stats.entreprises_actives / stats.total_entreprises * 100 if stats.total_entreprises else 0) }}% du total
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <div class="text-4xl font-bold text-blue-600">{{ "{:,}".format(stats.total_etablissements).replace(",", " ") }}</div>
+            <div class="text-gray-600 mt-1">Établissements totaux</div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <div class="text-4xl font-bold text-teal-600">{{ "{:,}".format(stats.etablissements_actifs).replace(",", " ") }}</div>
+            <div class="text-gray-600 mt-1">Établissements actifs</div>
+            <div class="text-sm text-gray-500 mt-2">
+                {{ "%.1f"|format(stats.etablissements_actifs / stats.total_etablissements * 100 if stats.total_etablissements else 0) }}% du total
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-8 bg-white rounded-xl shadow-sm border p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">À propos des données</h2>
+        <div class="prose text-gray-600">
+            <p>
+                Les données proviennent de la <strong>base SIRENE</strong> de l'INSEE,
+                qui recense l'ensemble des entreprises et établissements français.
+            </p>
+            <ul class="mt-4 space-y-2">
+                <li><strong>SIREN</strong> : Identifiant unique à 9 chiffres pour chaque entreprise</li>
+                <li><strong>SIRET</strong> : Identifiant unique à 14 chiffres pour chaque établissement (SIREN + NIC)</li>
+                <li><strong>NIC</strong> : Numéro Interne de Classement (5 chiffres)</li>
+            </ul>
+            <p class="mt-4 text-sm">
+                Source : INSEE - Licence ouverte
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

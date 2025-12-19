@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- Hero section -->
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">
+            Recherchez une entreprise française
+        </h1>
+        <p class="text-lg text-gray-600 mb-8">
+            Accédez aux informations légales de plus de {{ "{:,}".format(stats.total_entreprises).replace(",", " ") }} entreprises
+        </p>
+
+        <!-- Search bar -->
+        <div class="max-w-2xl mx-auto">
+            <form action="{{ url_for('search.search_page') }}" method="GET" class="relative">
+                <input
+                    type="text"
+                    name="q"
+                    id="search-input"
+                    placeholder="Nom, SIREN, SIRET..."
+                    class="search-input w-full px-6 py-4 text-lg border-2 border-gray-200 rounded-xl focus:border-primary focus:outline-none transition-all"
+                    autocomplete="off"
+                >
+                <button
+                    type="submit"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 bg-primary text-white px-6 py-2 rounded-lg hover:bg-secondary transition-colors"
+                >
+                    Rechercher
+                </button>
+            </form>
+
+            <!-- Autocomplete dropdown -->
+            <div id="autocomplete-results" class="hidden absolute z-10 w-full max-w-2xl bg-white border rounded-lg shadow-lg mt-1">
+            </div>
+        </div>
+
+        <!-- Quick search examples -->
+        <div class="mt-4 text-sm text-gray-500">
+            <span>Exemples :</span>
+            <a href="{{ url_for('search.search_page', q='TOTAL') }}" class="text-primary hover:underline ml-2">TOTAL</a>
+            <a href="{{ url_for('search.search_page', q='443061841') }}" class="text-primary hover:underline ml-2">443061841</a>
+            <a href="{{ url_for('search.search_page', code_postal='75') }}" class="text-primary hover:underline ml-2">Paris (75)</a>
+        </div>
+    </div>
+
+    <!-- Stats cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+            <div class="text-3xl font-bold text-primary">{{ "{:,}".format(stats.total_entreprises).replace(",", " ") }}</div>
+            <div class="text-gray-600">Entreprises</div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+            <div class="text-3xl font-bold text-green-600">{{ "{:,}".format(stats.entreprises_actives).replace(",", " ") }}</div>
+            <div class="text-gray-600">Entreprises actives</div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+            <div class="text-3xl font-bold text-blue-600">{{ "{:,}".format(stats.total_etablissements).replace(",", " ") }}</div>
+            <div class="text-gray-600">Établissements</div>
+        </div>
+    </div>
+
+    <!-- Features -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="text-center">
+            <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+            <h3 class="font-semibold text-gray-900 mb-2">Recherche rapide</h3>
+            <p class="text-gray-600 text-sm">Par nom, SIREN, SIRET ou localisation</p>
+        </div>
+        <div class="text-center">
+            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                </svg>
+            </div>
+            <h3 class="font-semibold text-gray-900 mb-2">Filtres avancés</h3>
+            <p class="text-gray-600 text-sm">Activité, taille, statut, localisation</p>
+        </div>
+        <div class="text-center">
+            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+            <h3 class="font-semibold text-gray-900 mb-2">Export CSV</h3>
+            <p class="text-gray-600 text-sm">Exportez vos résultats facilement</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const searchInput = document.getElementById('search-input');
+    const autocompleteResults = document.getElementById('autocomplete-results');
+    let debounceTimer;
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const query = this.value.trim();
+
+        if (query.length < 2) {
+            autocompleteResults.classList.add('hidden');
+            return;
+        }
+
+        debounceTimer = setTimeout(() => {
+            fetch(`/search/autocomplete?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        autocompleteResults.classList.add('hidden');
+                        return;
+                    }
+
+                    autocompleteResults.innerHTML = data.map(item => `
+                        <a href="/entreprise/${item.siren}" class="block px-4 py-3 hover:bg-gray-50 border-b last:border-b-0">
+                            <div class="font-medium text-gray-900">${item.denomination || 'Sans nom'}</div>
+                            <div class="text-sm text-gray-500">${item.siren}</div>
+                        </a>
+                    `).join('');
+                    autocompleteResults.classList.remove('hidden');
+                });
+        }, 300);
+    });
+
+    // Hide autocomplete on click outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !autocompleteResults.contains(e.target)) {
+            autocompleteResults.classList.add('hidden');
+        }
+    });
+</script>
+{% endblock %}

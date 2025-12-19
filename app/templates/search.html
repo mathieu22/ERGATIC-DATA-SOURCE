@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block title %}Recherche avancée - ERGATIC-DATA-ENTERPRISE{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <h1 class="text-2xl font-bold text-gray-900 mb-6">Recherche avancée</h1>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Filtres -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-xl shadow-sm border p-6 sticky top-4">
+                <h2 class="font-semibold text-gray-900 mb-4">Filtres</h2>
+                <form id="search-form" class="space-y-4">
+                    <!-- Recherche texte -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Recherche</label>
+                        <input type="text" name="q" id="filter-q" placeholder="Nom, SIREN..."
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                    </div>
+
+                    <!-- Code postal -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Code postal</label>
+                        <input type="text" name="code_postal" id="filter-cp" placeholder="75, 69001..."
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                    </div>
+
+                    <!-- Ville -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                        <input type="text" name="ville" id="filter-ville" placeholder="Paris, Lyon..."
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                    </div>
+
+                    <!-- Code activité -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Code NAF</label>
+                        <input type="text" name="activite" id="filter-activite" placeholder="62.01, 70.22..."
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                    </div>
+
+                    <!-- Catégorie entreprise -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Taille</label>
+                        <select name="categorie" id="filter-categorie"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                            <option value="">Toutes</option>
+                            <option value="PME">PME</option>
+                            <option value="ETI">ETI</option>
+                            <option value="GE">Grande entreprise</option>
+                        </select>
+                    </div>
+
+                    <!-- État -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">État</label>
+                        <select name="etat" id="filter-etat"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                            <option value="">Tous</option>
+                            <option value="A" selected>Actives uniquement</option>
+                            <option value="C">Cessées uniquement</option>
+                        </select>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-primary text-white py-2 rounded-lg hover:bg-secondary transition-colors">
+                        Rechercher
+                    </button>
+
+                    <button type="button" id="reset-filters"
+                        class="w-full border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+                        Réinitialiser
+                    </button>
+                </form>
+
+                <!-- Recherche par liste SIREN -->
+                <div class="mt-6 pt-6 border-t">
+                    <h3 class="font-medium text-gray-900 mb-3">Recherche par liste</h3>
+                    <textarea id="siren-list" rows="4" placeholder="Un SIREN par ligne..."
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm"></textarea>
+                    <button type="button" id="search-batch"
+                        class="mt-2 w-full bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-900 transition-colors text-sm">
+                        Rechercher les SIREN
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Résultats -->
+        <div class="lg:col-span-3">
+            <!-- Header résultats -->
+            <div class="flex justify-between items-center mb-4">
+                <div id="results-count" class="text-gray-600">
+                    <span class="loader hidden" id="loader"></span>
+                    <span id="count-text">Entrez vos critères de recherche</span>
+                </div>
+                <div class="flex gap-2">
+                    <button id="export-excel" class="hidden px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
+                        Export Excel
+                    </button>
+                    <button id="export-csv" class="hidden px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-colors">
+                        Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Liste résultats -->
+            <div id="results-container" class="space-y-3">
+                <!-- Résultats chargés dynamiquement -->
+            </div>
+
+            <!-- Pagination -->
+            <div id="pagination" class="hidden mt-6 flex justify-center gap-2">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    let currentParams = {};
+    let allSirens = [];
+
+    const form = document.getElementById('search-form');
+    const resultsContainer = document.getElementById('results-container');
+    const countText = document.getElementById('count-text');
+    const loader = document.getElementById('loader');
+    const pagination = document.getElementById('pagination');
+    const exportBtn = document.getElementById('export-csv');
+    const exportExcelBtn = document.getElementById('export-excel');
+
+    // Charger les paramètres URL au démarrage
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        document.getElementById('filter-q').value = urlParams.get('q') || '';
+        document.getElementById('filter-cp').value = urlParams.get('code_postal') || '';
+        document.getElementById('filter-ville').value = urlParams.get('ville') || '';
+        document.getElementById('filter-activite').value = urlParams.get('activite') || '';
+        document.getElementById('filter-categorie').value = urlParams.get('categorie') || '';
+        document.getElementById('filter-etat').value = urlParams.get('etat') || 'A';
+
+        if (urlParams.toString()) {
+            search();
+        }
+    });
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        currentPage = 1;
+        search();
+    });
+
+    document.getElementById('reset-filters').addEventListener('click', function() {
+        form.reset();
+        document.getElementById('filter-etat').value = 'A';
+        resultsContainer.innerHTML = '';
+        countText.textContent = 'Entrez vos critères de recherche';
+        pagination.classList.add('hidden');
+        exportBtn.classList.add('hidden');
+        exportExcelBtn.classList.add('hidden');
+    });
+
+    function search(page = 1) {
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+
+        for (let [key, value] of formData.entries()) {
+            if (value) params.append(key, value);
+        }
+        params.append('page', page);
+        params.append('per_page', 25);
+
+        currentParams = params;
+        loader.classList.remove('hidden');
+        countText.textContent = 'Recherche en cours...';
+
+        fetch(`/search/api?${params.toString()}`)
+            .then(response => response.json())
+            .then(data => {
+                loader.classList.add('hidden');
+                displayResults(data);
+                updatePagination(data);
+
+                // Stocker les SIREN pour export
+                allSirens = data.results.map(r => r.siren);
+                if (data.total > 0) {
+                    exportBtn.classList.remove('hidden');
+                    exportExcelBtn.classList.remove('hidden');
+                }
+            })
+            .catch(error => {
+                loader.classList.add('hidden');
+                countText.textContent = 'Erreur lors de la recherche';
+                console.error(error);
+            });
+    }
+
+    function displayResults(data) {
+        if (data.results.length === 0) {
+            countText.textContent = 'Aucun résultat trouvé';
+            resultsContainer.innerHTML = `
+                <div class="bg-white rounded-xl p-8 text-center text-gray-500">
+                    Aucune entreprise ne correspond à vos critères
+                </div>
+            `;
+            return;
+        }
+
+        countText.textContent = `${data.total.toLocaleString('fr-FR')} résultat(s) - Page ${data.page}/${data.pages}`;
+
+        resultsContainer.innerHTML = data.results.map(e => `
+            <a href="/entreprise/${e.siren}" class="block bg-white rounded-xl shadow-sm border p-4 hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-semibold text-gray-900">${e.denomination || 'Sans dénomination'}</h3>
+                            ${e.sigle ? `<span class="text-gray-500">(${e.sigle})</span>` : ''}
+                            <span class="px-2 py-0.5 rounded text-xs ${e.est_active ? 'badge-active' : 'badge-inactive'}">
+                                ${e.est_active ? 'Active' : 'Cessée'}
+                            </span>
+                        </div>
+                        <div class="mt-1 text-sm text-gray-600">
+                            SIREN: ${e.siren}
+                            ${e.siege ? ` | ${e.siege.ville || ''} (${e.siege.code_postal || ''})` : ''}
+                        </div>
+                        <div class="mt-1 text-sm text-gray-500">
+                            ${e.activite_principale ? `NAF: ${e.activite_principale}` : ''}
+                            ${e.categorie_entreprise ? ` | ${e.categorie_entreprise}` : ''}
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+            </a>
+        `).join('');
+    }
+
+    function updatePagination(data) {
+        if (data.pages <= 1) {
+            pagination.classList.add('hidden');
+            return;
+        }
+
+        pagination.classList.remove('hidden');
+        let html = '';
+
+        // Previous
+        if (data.page > 1) {
+            html += `<button onclick="search(${data.page - 1})" class="px-3 py-1 border rounded hover:bg-gray-50">Précédent</button>`;
+        }
+
+        // Pages
+        const startPage = Math.max(1, data.page - 2);
+        const endPage = Math.min(data.pages, data.page + 2);
+
+        if (startPage > 1) {
+            html += `<button onclick="search(1)" class="px-3 py-1 border rounded hover:bg-gray-50">1</button>`;
+            if (startPage > 2) html += `<span class="px-2">...</span>`;
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const active = i === data.page ? 'bg-primary text-white' : 'hover:bg-gray-50';
+            html += `<button onclick="search(${i})" class="px-3 py-1 border rounded ${active}">${i}</button>`;
+        }
+
+        if (endPage < data.pages) {
+            if (endPage < data.pages - 1) html += `<span class="px-2">...</span>`;
+            html += `<button onclick="search(${data.pages})" class="px-3 py-1 border rounded hover:bg-gray-50">${data.pages}</button>`;
+        }
+
+        // Next
+        if (data.page < data.pages) {
+            html += `<button onclick="search(${data.page + 1})" class="px-3 py-1 border rounded hover:bg-gray-50">Suivant</button>`;
+        }
+
+        pagination.innerHTML = html;
+    }
+
+    // Export CSV
+    exportBtn.addEventListener('click', function() {
+        const params = new URLSearchParams(currentParams);
+        params.delete('page');
+        params.delete('per_page');
+        window.location.href = `/export/search/csv?${params.toString()}`;
+    });
+
+    // Export Excel
+    exportExcelBtn.addEventListener('click', function() {
+        const params = new URLSearchParams(currentParams);
+        params.delete('page');
+        params.delete('per_page');
+        window.location.href = `/export/search/excel?${params.toString()}`;
+    });
+
+    // Recherche par liste SIREN
+    document.getElementById('search-batch').addEventListener('click', function() {
+        const sirens = document.getElementById('siren-list').value
+            .split('\n')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+
+        if (sirens.length === 0) return;
+
+        loader.classList.remove('hidden');
+        countText.textContent = `Recherche de ${sirens.length} SIREN...`;
+
+        fetch('/search/batch', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sirens: sirens})
+        })
+            .then(response => response.json())
+            .then(data => {
+                loader.classList.add('hidden');
+
+                let countMsg = `${data.total} entreprise(s) trouvée(s)`;
+                if (data.not_found_count > 0) {
+                    countMsg += ` | ${data.not_found_count} SIREN non trouvé(s)`;
+                }
+                countText.textContent = countMsg;
+
+                displayResults({results: data.results, total: data.total, page: 1, pages: 1});
+                pagination.classList.add('hidden');
+
+                allSirens = data.results.map(r => r.siren);
+                if (data.total > 0) {
+                    exportBtn.classList.remove('hidden');
+                    exportExcelBtn.classList.remove('hidden');
+                }
+            });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}{{ entreprise.nom_complet }} - ERGATIC-DATA-ENTERPRISE{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Breadcrumb -->
+    <nav class="mb-6 text-sm">
+        <a href="{{ url_for('main.index') }}" class="text-primary hover:underline">Accueil</a>
+        <span class="mx-2 text-gray-400">/</span>
+        <span class="text-gray-600">{{ entreprise.nom_complet }}</span>
+    </nav>
+
+    <!-- Header entreprise -->
+    <div class="bg-white rounded-xl shadow-sm border p-6 mb-6">
+        <div class="flex justify-between items-start">
+            <div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-2xl font-bold text-gray-900">{{ entreprise.nom_complet }}</h1>
+                    {% if entreprise.sigle %}
+                        <span class="text-gray-500">({{ entreprise.sigle }})</span>
+                    {% endif %}
+                    <span class="px-3 py-1 rounded-full text-sm {{ 'badge-active' if entreprise.est_active else 'badge-inactive' }}">
+                        {{ 'Active' if entreprise.est_active else 'Cessée' }}
+                    </span>
+                </div>
+                <p class="mt-2 text-lg text-gray-600">SIREN : {{ entreprise.siren }}</p>
+            </div>
+            <div class="flex gap-2">
+                <a href="{{ url_for('export.export_entreprise_excel', siren=entreprise.siren) }}"
+                   class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Export Excel
+                </a>
+                <a href="{{ url_for('export.export_etablissements_csv', siren=entreprise.siren) }}"
+                   class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    CSV
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Informations principales -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Identité -->
+            <div class="bg-white rounded-xl shadow-sm border p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Identité de l'entreprise</h2>
+                <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <dt class="text-sm text-gray-500">SIREN</dt>
+                        <dd class="font-medium">{{ entreprise.siren }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm text-gray-500">SIRET Siège</dt>
+                        <dd class="font-medium">{{ entreprise.siret_siege or 'Non renseigné' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm text-gray-500">Forme juridique</dt>
+                        <dd class="font-medium">{{ entreprise.categorie_juridique or 'Non renseigné' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm text-gray-500">Date de création</dt>
+                        <dd class="font-medium">
+                            {{ entreprise.date_creation.strftime('%d/%m/%Y') if entreprise.date_creation else 'Non renseigné' }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm text-gray-500">Activité principale (NAF)</dt>
+                        <dd class="font-medium">{{ entreprise.activite_principale or 'Non renseigné' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm text-gray-500">Catégorie</dt>
+                        <dd class="font-medium">{{ entreprise.categorie_entreprise or 'Non renseigné' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm text-gray-500">Tranche d'effectifs</dt>
+                        <dd class="font-medium">{{ entreprise.tranche_effectifs or 'Non renseigné' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm text-gray-500">Économie sociale et solidaire</dt>
+                        <dd class="font-medium">{{ 'Oui' if entreprise.economie_sociale_solidaire == 'O' else 'Non' }}</dd>
+                    </div>
+                </dl>
+            </div>
+
+            <!-- Siège social -->
+            {% if siege %}
+            <div class="bg-white rounded-xl shadow-sm border p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Siège social</h2>
+                <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <dt class="text-sm text-gray-500">Adresse</dt>
+                        <dd class="font-medium whitespace-pre-line">{{ siege.adresse_complete }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm text-gray-500">SIRET</dt>
+                        <dd class="font-medium">{{ siege.siret }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm text-gray-500">État</dt>
+                        <dd>
+                            <span class="px-2 py-0.5 rounded text-xs {{ 'badge-active' if siege.est_actif else 'badge-inactive' }}">
+                                {{ 'Actif' if siege.est_actif else 'Fermé' }}
+                            </span>
+                        </dd>
+                    </div>
+                    {% if siege.enseigne_1 %}
+                    <div>
+                        <dt class="text-sm text-gray-500">Enseigne</dt>
+                        <dd class="font-medium">{{ siege.enseigne_1 }}</dd>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <dt class="text-sm text-gray-500">Activité (NAF)</dt>
+                        <dd class="font-medium">{{ siege.activite_principale or 'Non renseigné' }}</dd>
+                    </div>
+                </dl>
+            </div>
+            {% endif %}
+
+            <!-- Établissements -->
+            <div class="bg-white rounded-xl shadow-sm border p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        Établissements ({{ total_etablissements }})
+                    </h2>
+                </div>
+
+                {% if etablissements %}
+                <div class="space-y-3">
+                    {% for etab in etablissements %}
+                    <div class="border rounded-lg p-4 {{ 'ring-2 ring-primary' if highlight_siret == etab.siret else '' }}" id="etab-{{ etab.siret }}">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-medium">{{ etab.nom_affiche }}</span>
+                                    <span class="px-2 py-0.5 rounded text-xs {{ 'badge-active' if etab.est_actif else 'badge-inactive' }}">
+                                        {{ 'Actif' if etab.est_actif else 'Fermé' }}
+                                    </span>
+                                </div>
+                                <div class="text-sm text-gray-600 mt-1">
+                                    SIRET : {{ etab.siret }}
+                                </div>
+                                <div class="text-sm text-gray-500 mt-1">
+                                    {{ etab.adresse_ligne }}
+                                </div>
+                                {% if etab.activite_principale %}
+                                <div class="text-sm text-gray-500">
+                                    NAF : {{ etab.activite_principale }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-500">Aucun autre établissement</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Actions rapides -->
+            <div class="bg-white rounded-xl shadow-sm border p-6">
+                <h3 class="font-semibold text-gray-900 mb-4">Actions</h3>
+                <div class="space-y-2">
+                    <a href="{{ url_for('export.export_entreprise_excel', siren=entreprise.siren) }}"
+                       class="block w-full text-center px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
+                        Export Excel complet
+                    </a>
+                    <a href="{{ url_for('export.export_etablissements_csv', siren=entreprise.siren) }}"
+                       class="block w-full text-center px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-colors">
+                        Export CSV établissements
+                    </a>
+                    <a href="{{ url_for('entreprise.detail_json', siren=entreprise.siren) }}" target="_blank"
+                       class="block w-full text-center px-4 py-2 border rounded-lg text-sm hover:bg-gray-50 transition-colors">
+                        Voir JSON
+                    </a>
+                </div>
+            </div>
+
+            <!-- Résumé -->
+            <div class="bg-white rounded-xl shadow-sm border p-6">
+                <h3 class="font-semibold text-gray-900 mb-4">Résumé</h3>
+                <dl class="space-y-3">
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Établissements</dt>
+                        <dd class="font-medium">{{ total_etablissements }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Établissements actifs</dt>
+                        <dd class="font-medium text-green-600">
+                            {{ etablissements|selectattr('est_actif')|list|length + (1 if siege and siege.est_actif else 0) }}
+                        </dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Établissements fermés</dt>
+                        <dd class="font-medium text-red-600">
+                            {{ etablissements|rejectattr('est_actif')|list|length + (1 if siege and not siege.est_actif else 0) }}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if highlight_siret %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const element = document.getElementById('etab-{{ highlight_siret }}');
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

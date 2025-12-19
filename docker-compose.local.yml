@@ -1,0 +1,37 @@
+version: '3.8'
+
+# Docker Compose pour test LOCAL (sans disque externe)
+# Usage: docker-compose -f docker-compose.local.yml up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pappers_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sirene
+      POSTGRES_USER: pappers
+      POSTGRES_PASSWORD: pappers_secure_2024
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "5433:5432"  # Port 5433 car 5432 déjà utilisé
+    volumes:
+      # Volume LOCAL dans le projet
+      - ./data/postgres:/var/lib/postgresql/data
+      # Script d'initialisation
+      - ./docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=512MB"
+      - "-c"
+      - "maintenance_work_mem=128MB"
+      - "-c"
+      - "work_mem=64MB"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pappers -d sirene"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
