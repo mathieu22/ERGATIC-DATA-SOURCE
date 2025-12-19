@@ -1,49 +1,39 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
     container_name: pappers_db
     restart: unless-stopped
+    user: root
     environment:
       POSTGRES_DB: sirene
       POSTGRES_USER: pappers
       POSTGRES_PASSWORD: pappers_secure_2024
-      # Optimisations pour import massif
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=fr_FR.UTF-8"
     ports:
       - "5432:5432"
     volumes:
-      # Volume sur disque externe pour les données
       - "/Volumes/Crucial X10/pappers_data/postgres:/var/lib/postgresql/data"
-      # Script d'initialisation
       - "./docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql"
-    command:
-      - "postgres"
-      # Optimisations mémoire pour Mac M4 (ajuster selon RAM disponible)
-      - "-c"
-      - "shared_buffers=2GB"
-      - "-c"
-      - "effective_cache_size=6GB"
-      - "-c"
-      - "maintenance_work_mem=1GB"
-      - "-c"
-      - "work_mem=256MB"
-      # Optimisations pour import CSV massif
-      - "-c"
-      - "max_wal_size=4GB"
-      - "-c"
-      - "checkpoint_completion_target=0.9"
-      - "-c"
-      - "wal_buffers=64MB"
-      # Parallélisation
-      - "-c"
-      - "max_parallel_workers_per_gather=4"
-      - "-c"
-      - "max_parallel_workers=8"
-      # Logs
-      - "-c"
-      - "log_statement=none"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        # Nettoyer les fichiers AppleDouble macOS
+        find /var/lib/postgresql/data -name '._*' -delete 2>/dev/null || true
+        # Corriger les permissions
+        chown -R postgres:postgres /var/lib/postgresql/data 2>/dev/null || true
+        # Lancer PostgreSQL normalement
+        exec su-exec postgres docker-entrypoint.sh postgres \
+          -c shared_buffers=2GB \
+          -c effective_cache_size=6GB \
+          -c maintenance_work_mem=1GB \
+          -c work_mem=256MB \
+          -c max_wal_size=4GB \
+          -c checkpoint_completion_target=0.9 \
+          -c wal_buffers=64MB \
+          -c max_parallel_workers_per_gather=4 \
+          -c max_parallel_workers=8 \
+          -c log_statement=none
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pappers -d sirene"]
       interval: 10s
