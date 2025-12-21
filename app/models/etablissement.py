@@ -1,4 +1,5 @@
 from app import db
+from app.models.unite_legale import format_date
 
 
 class Etablissement(db.Model):
@@ -112,6 +113,16 @@ class Etablissement(db.Model):
     def nom_affiche(self):
         """Retourne le nom à afficher"""
         return self.denomination_usuelle or self.enseigne_1 or f"Établissement {self.nic}"
+
+    @property
+    def date_creation_formatee(self):
+        """Retourne la date de création formatée"""
+        return format_date(self.date_creation)
+
+    @property
+    def date_dernier_traitement_formatee(self):
+        """Retourne la date de dernier traitement formatée"""
+        return format_date(self.date_dernier_traitement, '%d/%m/%Y %H:%M')
 
     def to_dict(self):
         """Sérialisation pour API"""

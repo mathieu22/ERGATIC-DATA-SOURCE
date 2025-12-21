@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, Response, send_file
 from sqlalchemy import or_
 from app.models import UniteLegale, Etablissement
+from app.models.unite_legale import format_date
 from app import db
 from app.utils.geo import lambert93_to_gps, format_gps_link
 import csv
@@ -83,12 +84,12 @@ def export_entreprise_excel(siren):
         ("Économie sociale solidaire", "Oui" if entreprise.economie_sociale_solidaire == 'O' else "Non"),
         ("Société à mission", "Oui" if entreprise.societe_mission == 'O' else "Non"),
         ("Caractère employeur", "Oui" if entreprise.caractere_employeur == 'O' else "Non"),
-        ("Date création", entreprise.date_creation.strftime('%d/%m/%Y') if entreprise.date_creation else ''),
+        ("Date création", format_date(entreprise.date_creation) or ''),
         ("NIC siège", entreprise.nic_siege or ''),
         ("SIRET siège", entreprise.siret_siege or ''),
         ("Identifiant association", entreprise.identifiant_association or ''),
         ("Statut diffusion", entreprise.statut_diffusion or ''),
-        ("Date dernier traitement", entreprise.date_dernier_traitement.strftime('%d/%m/%Y %H:%M') if entreprise.date_dernier_traitement else ''),
+        ("Date dernier traitement", format_date(entreprise.date_dernier_traitement, '%d/%m/%Y %H:%M') or ''),
     ]
 
     # Écrire les données
@@ -154,8 +155,8 @@ def export_entreprise_excel(siren):
             etab.tranche_effectifs or '',
             etab.annee_effectifs or '',
             "Oui" if etab.caractere_employeur == 'O' else "Non",
-            etab.date_creation.strftime('%d/%m/%Y') if etab.date_creation else '',
-            etab.date_dernier_traitement.strftime('%d/%m/%Y %H:%M') if etab.date_dernier_traitement else '',
+            format_date(etab.date_creation) or '',
+            format_date(etab.date_dernier_traitement, '%d/%m/%Y %H:%M') or '',
             lat or '',
             lon or '',
             gps_link or '',
@@ -233,7 +234,7 @@ def export_csv():
             e.categorie_entreprise or '',
             e.tranche_effectifs or '',
             'Actif' if e.est_active else 'Cessé',
-            e.date_creation.strftime('%d/%m/%Y') if e.date_creation else '',
+            format_date(e.date_creation) or '',
             siege.siret if siege else '',
             siege.adresse_ligne if siege else '',
             siege.code_postal if siege else '',
@@ -294,7 +295,7 @@ def export_etablissements_csv(siren):
             e.adresse_ligne,
             e.code_postal or '',
             e.libelle_commune or '',
-            e.date_creation.strftime('%d/%m/%Y') if e.date_creation else '',
+            format_date(e.date_creation) or '',
             lat or '',
             lon or '',
             gps_link or ''
@@ -410,7 +411,7 @@ def export_search_excel():
             e.categorie_entreprise or '',
             e.tranche_effectifs or '',
             'Actif' if e.etat_administratif == 'A' else 'Cessé',
-            e.date_creation.strftime('%d/%m/%Y') if e.date_creation else '',
+            format_date(e.date_creation) or '',
             siege.siret if siege else '',
             siege.adresse_ligne if siege else '',
             siege.code_postal if siege else '',
@@ -474,7 +475,7 @@ def export_search_excel():
             etab.libelle_commune or '',
             etab.activite_principale or '',
             etab.tranche_effectifs or '',
-            etab.date_creation.strftime('%d/%m/%Y') if etab.date_creation else '',
+            format_date(etab.date_creation) or '',
             lat or '',
             lon or '',
             gps_link or ''
@@ -575,7 +576,7 @@ def export_search_csv():
             e.categorie_entreprise or '',
             e.tranche_effectifs or '',
             'Actif' if e.est_active else 'Cessé',
-            e.date_creation.strftime('%d/%m/%Y') if e.date_creation else '',
+            format_date(e.date_creation) or '',
             siege.siret if siege else '',
             siege.adresse_ligne if siege else '',
             siege.code_postal if siege else '',

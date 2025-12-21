@@ -67,7 +67,7 @@
                     <div>
                         <dt class="text-sm text-gray-500">Date de création</dt>
                         <dd class="font-medium">
-                            {{ entreprise.date_creation.strftime('%d/%m/%Y') if entreprise.date_creation else 'Non renseigné' }}
+                            {{ entreprise.date_creation_formatee or 'Non renseigné' }}
                         </dd>
                     </div>
                     <div>

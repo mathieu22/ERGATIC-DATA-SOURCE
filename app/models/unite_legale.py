@@ -1,4 +1,35 @@
 from app import db
+from datetime import datetime
+
+
+def format_date(date_value, format_out='%d/%m/%Y'):
+    """
+    Formate une date (string ou datetime) en format lisible.
+    Gère les dates stockées comme TEXT ou comme Date/DateTime.
+    """
+    if not date_value:
+        return None
+    # Si c'est déjà un datetime
+    if isinstance(date_value, datetime):
+        return date_value.strftime(format_out)
+    # Si c'est une date (sans heure)
+    if hasattr(date_value, 'strftime'):
+        return date_value.strftime(format_out)
+    # Si c'est une string, parser
+    if isinstance(date_value, str):
+        # Format ISO standard (YYYY-MM-DD ou YYYY-MM-DDTHH:MM:SS)
+        try:
+            parsed = datetime.strptime(date_value[:10], '%Y-%m-%d')
+            return parsed.strftime(format_out)
+        except (ValueError, TypeError):
+            pass
+        # Format français (DD/MM/YYYY)
+        try:
+            parsed = datetime.strptime(date_value[:10], '%d/%m/%Y')
+            return parsed.strftime(format_out)
+        except (ValueError, TypeError):
+            pass
+    return str(date_value)  # Retourner tel quel si non parseable
 
 
 class UniteLegale(db.Model):
@@ -76,6 +107,16 @@ class UniteLegale(db.Model):
         if self.nic_siege:
             return f"{self.siren}{self.nic_siege}"
         return None
+
+    @property
+    def date_creation_formatee(self):
+        """Retourne la date de création formatée"""
+        return format_date(self.date_creation)
+
+    @property
+    def date_dernier_traitement_formatee(self):
+        """Retourne la date de dernier traitement formatée"""
+        return format_date(self.date_dernier_traitement, '%d/%m/%Y %H:%M')
 
     def to_dict(self):
         """Sérialisation pour API"""
