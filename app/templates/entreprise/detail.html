@@ -130,12 +130,27 @@
                     <h2 class="text-lg font-semibold text-gray-900">
                         Établissements ({{ total_etablissements }})
                     </h2>
+                    {% if etablissements %}
+                    <div class="flex gap-2">
+                        <button type="button" data-filter="all" class="etab-filter px-3 py-1 text-sm rounded-lg bg-primary text-white">
+                            Tous
+                        </button>
+                        <button type="button" data-filter="actif" class="etab-filter px-3 py-1 text-sm rounded-lg border hover:bg-gray-50">
+                            Ouverts
+                        </button>
+                        <button type="button" data-filter="ferme" class="etab-filter px-3 py-1 text-sm rounded-lg border hover:bg-gray-50">
+                            Fermés
+                        </button>
+                    </div>
+                    {% endif %}
                 </div>
 
                 {% if etablissements %}
-                <div class="space-y-3">
+                <div class="space-y-3" id="etablissements-list">
                     {% for etab in etablissements %}
-                    <div class="border rounded-lg p-4 {{ 'ring-2 ring-primary' if highlight_siret == etab.siret else '' }}" id="etab-{{ etab.siret }}">
+                    <div class="etab-item border rounded-lg p-4 {{ 'ring-2 ring-primary' if highlight_siret == etab.siret else '' }}"
+                         id="etab-{{ etab.siret }}"
+                         data-status="{{ 'actif' if etab.est_actif else 'ferme' }}">
                         <div class="flex justify-between items-start">
                             <div>
                                 <div class="flex items-center gap-2">
@@ -213,14 +228,48 @@
     </div>
 </div>
 
-{% if highlight_siret %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const element = document.getElementById('etab-{{ highlight_siret }}');
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+document.addEventListener('DOMContentLoaded', function() {
+    // Scroll to highlighted element
+    {% if highlight_siret %}
+    const highlightElement = document.getElementById('etab-{{ highlight_siret }}');
+    if (highlightElement) {
+        highlightElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    {% endif %}
+
+    // Filter etablissements
+    const filterButtons = document.querySelectorAll('.etab-filter');
+    const etablissements = document.querySelectorAll('.etab-item');
+
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+
+            // Update button styles
+            filterButtons.forEach(b => {
+                b.classList.remove('bg-primary', 'text-white');
+                b.classList.add('border', 'hover:bg-gray-50');
+            });
+            this.classList.add('bg-primary', 'text-white');
+            this.classList.remove('border', 'hover:bg-gray-50');
+
+            // Filter etablissements
+            etablissements.forEach(etab => {
+                if (filter === 'all') {
+                    etab.style.display = '';
+                } else if (etab.dataset.status === filter) {
+                    etab.style.display = '';
+                } else {
+                    etab.style.display = 'none';
+                }
+            });
+
+            // Update count
+            const visibleCount = document.querySelectorAll('.etab-item:not([style*="display: none"])').length;
+            const countText = filter === 'all' ? '' : ` - ${visibleCount} affiché(s)`;
+        });
     });
+});
 </script>
-{% endif %}
 {% endblock %}
