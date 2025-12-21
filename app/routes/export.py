@@ -3,6 +3,7 @@ from app.models import UniteLegale, Etablissement
 from app.models.unite_legale import format_date
 from app import db
 from app.utils.geo import lambert93_to_gps, format_gps_link
+from app.services import get_dirigeants, get_finances
 import csv
 import io
 from datetime import datetime
@@ -169,6 +170,80 @@ def export_entreprise_excel(siren):
     # Ajuster largeur colonnes
     for col_idx, header in enumerate(headers, start=1):
         ws_etab.column_dimensions[chr(64 + col_idx) if col_idx <= 26 else 'A' + chr(64 + col_idx - 26)].width = max(len(header) + 2, 12)
+
+    # ========== FEUILLE 3 : DIRIGEANTS ==========
+    dirigeants = get_dirigeants(siren)
+    if dirigeants:
+        ws_dir = wb.create_sheet("Dirigeants")
+
+        headers_dir = [
+            "Type", "Nom", "Prénoms", "Qualité", "Nationalité",
+            "Année naissance", "SIREN (personne morale)", "Dénomination (personne morale)"
+        ]
+
+        for col_idx, header in enumerate(headers_dir, start=1):
+            cell = ws_dir.cell(row=1, column=col_idx, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center')
+
+        for row_idx, d in enumerate(dirigeants, start=2):
+            if d.get('type') == 'Personne physique':
+                data = [
+                    d.get('type', ''),
+                    d.get('nom', ''),
+                    d.get('prenoms', ''),
+                    d.get('qualite', ''),
+                    d.get('nationalite', ''),
+                    d.get('annee_naissance', ''),
+                    '',
+                    ''
+                ]
+            else:
+                data = [
+                    d.get('type', ''),
+                    '',
+                    '',
+                    d.get('qualite', ''),
+                    '',
+                    '',
+                    d.get('siren', ''),
+                    d.get('denomination', '')
+                ]
+
+            for col_idx, value in enumerate(data, start=1):
+                ws_dir.cell(row=row_idx, column=col_idx, value=value)
+
+        # Ajuster largeurs
+        for col_idx, header in enumerate(headers_dir, start=1):
+            ws_dir.column_dimensions[chr(64 + col_idx)].width = max(len(header) + 2, 15)
+
+    # ========== FEUILLE 4 : DONNÉES FINANCIÈRES ==========
+    finances = get_finances(siren)
+    if finances:
+        ws_fin = wb.create_sheet("Finances")
+
+        headers_fin = ["Année", "Chiffre d'affaires (€)", "Résultat net (€)"]
+
+        for col_idx, header in enumerate(headers_fin, start=1):
+            cell = ws_fin.cell(row=1, column=col_idx, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center')
+
+        for row_idx, (annee, data) in enumerate(sorted(finances.items(), reverse=True), start=2):
+            row_data = [
+                annee,
+                data.get('ca') if data.get('ca') else '',
+                data.get('resultat_net') if data.get('resultat_net') else ''
+            ]
+
+            for col_idx, value in enumerate(row_data, start=1):
+                ws_fin.cell(row=row_idx, column=col_idx, value=value)
+
+        # Ajuster largeurs
+        for col_idx, header in enumerate(headers_fin, start=1):
+            ws_fin.column_dimensions[chr(64 + col_idx)].width = 25
 
     # Sauvegarder dans un buffer
     output = io.BytesIO()

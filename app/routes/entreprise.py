@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, jsonify, abort
 from app.models import UniteLegale, Etablissement
 from app import db
+from app.services import get_dirigeants, get_finances
 
 entreprise_bp = Blueprint('entreprise', __name__)
 
@@ -34,12 +35,18 @@ def detail(siren):
         else:
             autres.append(etab)
 
+    # Récupérer les dirigeants et finances depuis l'API externe
+    dirigeants = get_dirigeants(siren)
+    finances = get_finances(siren)
+
     return render_template(
         'entreprise/detail.html',
         entreprise=entreprise,
         siege=siege,
         etablissements=autres,
-        total_etablissements=len(etablissements)
+        total_etablissements=len(etablissements),
+        dirigeants=dirigeants,
+        finances=finances
     )
 
 
