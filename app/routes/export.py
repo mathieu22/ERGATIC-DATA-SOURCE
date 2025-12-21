@@ -3,7 +3,7 @@ from app.models import UniteLegale, Etablissement
 from app.models.unite_legale import format_date
 from app import db
 from app.utils.geo import lambert93_to_gps, format_gps_link
-from app.services import get_dirigeants, get_finances
+from app.services import get_dirigeants, get_finances, get_bulk_entreprise_data
 import csv
 import io
 from datetime import datetime
@@ -388,7 +388,7 @@ def export_etablissements_csv(siren):
 
 @export_bp.route('/search/excel')
 def export_search_excel():
-    """Export des résultats de recherche en Excel avec toutes les infos"""
+    """Export des résultats de recherche en Excel avec dirigeants et finances"""
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment
@@ -433,14 +433,19 @@ def export_search_excel():
     if not entreprises:
         return jsonify({'error': 'Aucun résultat à exporter'}), 404
 
+    # Récupérer les données API (dirigeants + finances) pour toutes les entreprises
+    sirens = [e.siren for e in entreprises]
+    api_data = get_bulk_entreprise_data(sirens)
+
     # Créer le workbook
     wb = Workbook()
 
     # Style
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
+    green_fill = PatternFill(start_color="10B981", end_color="10B981", fill_type="solid")
 
-    # ========== FEUILLE 1 : ENTREPRISES ==========
+    # ========== FEUILLE 1 : ENTREPRISES (avec finances) ==========
     ws_entreprises = wb.active
     ws_entreprises.title = "Entreprises"
 
@@ -449,13 +454,14 @@ def export_search_excel():
         "Catégorie juridique", "Activité principale (NAF)", "Catégorie entreprise",
         "Tranche effectifs", "État", "Date création",
         "SIRET Siège", "Adresse siège", "Code postal", "Ville",
-        "Latitude GPS", "Longitude GPS", "Google Maps"
+        "Latitude GPS", "Longitude GPS", "Google Maps",
+        "Dernier CA (€)", "Dernier Résultat Net (€)", "Année financière"
     ]
 
     for col_idx, header in enumerate(headers_ul, start=1):
         cell = ws_entreprises.cell(row=1, column=col_idx, value=header)
         cell.font = header_font
-        cell.fill = header_fill
+        cell.fill = header_fill if col_idx <= 18 else green_fill
         cell.alignment = Alignment(horizontal='center')
 
     for row_idx, e in enumerate(entreprises, start=2):
@@ -469,6 +475,12 @@ def export_search_excel():
         if siege:
             lat, lon = lambert93_to_gps(siege.coordonnee_lambert_x, siege.coordonnee_lambert_y)
             gps_link = format_gps_link(lat, lon)
+
+        # Données financières depuis l'API
+        api_info = api_data.get(e.siren, {})
+        finances = api_info.get('finances', {})
+        last_year = max(finances.keys()) if finances else None
+        last_finance = finances.get(last_year, {}) if last_year else {}
 
         data = [
             e.siren,
@@ -488,7 +500,10 @@ def export_search_excel():
             siege.libelle_commune if siege else '',
             lat or '',
             lon or '',
-            gps_link or ''
+            gps_link or '',
+            last_finance.get('ca', ''),
+            last_finance.get('resultat_net', ''),
+            last_year or ''
         ]
 
         for col_idx, value in enumerate(data, start=1):
@@ -496,7 +511,8 @@ def export_search_excel():
 
     # Ajuster largeurs
     for col_idx, header in enumerate(headers_ul, start=1):
-        ws_entreprises.column_dimensions[chr(64 + col_idx) if col_idx <= 26 else 'A' + chr(64 + col_idx - 26)].width = max(len(header) + 2, 15)
+        col_letter = chr(64 + col_idx) if col_idx <= 26 else 'A' + chr(64 + col_idx - 26)
+        ws_entreprises.column_dimensions[col_letter].width = max(len(header) + 2, 15)
 
     # ========== FEUILLE 2 : ÉTABLISSEMENTS ==========
     ws_etab = wb.create_sheet("Établissements")
@@ -557,6 +573,62 @@ def export_search_excel():
     # Ajuster largeurs
     for col_idx, header in enumerate(headers_etab, start=1):
         ws_etab.column_dimensions[chr(64 + col_idx) if col_idx <= 26 else 'A' + chr(64 + col_idx - 26)].width = max(len(header) + 2, 12)
+
+    # ========== FEUILLE 3 : DIRIGEANTS ==========
+    ws_dir = wb.create_sheet("Dirigeants")
+
+    headers_dir = [
+        "SIREN", "Dénomination", "Type dirigeant", "Nom", "Prénoms",
+        "Qualité", "Nationalité", "Année naissance",
+        "SIREN (personne morale)", "Dénomination (personne morale)"
+    ]
+
+    for col_idx, header in enumerate(headers_dir, start=1):
+        cell = ws_dir.cell(row=1, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = PatternFill(start_color="7C3AED", end_color="7C3AED", fill_type="solid")
+        cell.alignment = Alignment(horizontal='center')
+
+    row_idx = 2
+    for e in entreprises:
+        api_info = api_data.get(e.siren, {})
+        dirigeants = api_info.get('dirigeants', [])
+
+        for d in dirigeants:
+            if d.get('type_dirigeant') == 'personne physique':
+                data = [
+                    e.siren,
+                    e.denomination or '',
+                    'Personne physique',
+                    d.get('nom', ''),
+                    d.get('prenoms', ''),
+                    d.get('qualite', ''),
+                    d.get('nationalite', ''),
+                    d.get('annee_de_naissance', ''),
+                    '',
+                    ''
+                ]
+            else:
+                data = [
+                    e.siren,
+                    e.denomination or '',
+                    'Personne morale',
+                    '',
+                    '',
+                    d.get('qualite', ''),
+                    '',
+                    '',
+                    d.get('siren', ''),
+                    d.get('denomination', '')
+                ]
+
+            for col_idx, value in enumerate(data, start=1):
+                ws_dir.cell(row=row_idx, column=col_idx, value=value)
+            row_idx += 1
+
+    # Ajuster largeurs dirigeants
+    for col_idx, header in enumerate(headers_dir, start=1):
+        ws_dir.column_dimensions[chr(64 + col_idx)].width = max(len(header) + 2, 15)
 
     # Sauvegarder
     output = io.BytesIO()

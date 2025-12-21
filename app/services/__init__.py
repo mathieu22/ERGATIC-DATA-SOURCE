@@ -2,6 +2,7 @@
 
 from app.services.api_entreprise import (
     get_entreprise_data,
+    get_bulk_entreprise_data,
     get_dirigeants,
     get_finances,
     get_complements
@@ -9,6 +10,7 @@ from app.services.api_entreprise import (
 
 __all__ = [
     'get_entreprise_data',
+    'get_bulk_entreprise_data',
     'get_dirigeants',
     'get_finances',
     'get_complements'
