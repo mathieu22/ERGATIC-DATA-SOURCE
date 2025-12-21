@@ -54,9 +54,9 @@ def search_api():
         else:
             query = query.filter(UniteLegale.denomination.ilike(f"{q}%"))
 
-    # Filtres additionnels
+    # Filtres additionnels (égalité exacte pour performance)
     if activite:
-        query = query.filter(UniteLegale.activite_principale.like(f"{activite}%"))
+        query = query.filter(UniteLegale.activite_principale == activite)
 
     if categorie:
         query = query.filter(UniteLegale.categorie_entreprise == categorie)
@@ -70,9 +70,11 @@ def search_api():
             Etablissement.etablissement_siege == 'true'
         )
         if code_postal:
+            # code_postal = département (2 chiffres), donc LIKE 'XX%'
             subquery = subquery.filter(Etablissement.code_postal.like(f"{code_postal}%"))
         if ville:
-            subquery = subquery.filter(Etablissement.libelle_commune.ilike(f"{ville}%"))
+            # Égalité exacte sur la ville
+            subquery = subquery.filter(Etablissement.libelle_commune == ville)
         query = query.filter(UniteLegale.siren.in_(subquery))
 
     # Tri par pertinence (entreprises actives d'abord)
@@ -176,3 +178,53 @@ def autocomplete():
         {'siren': r.siren, 'denomination': r.denomination}
         for r in results
     ])
+
+
+# ============================================
+# API pour les listes de valeurs uniques
+# ============================================
+
+@search_bp.route('/filters/codes-postaux')
+def get_codes_postaux():
+    """Liste des codes postaux uniques (2 premiers chiffres = département)"""
+    results = db.session.query(
+        func.substr(Etablissement.code_postal, 1, 2).label('dept')
+    ).filter(
+        Etablissement.code_postal.isnot(None),
+        Etablissement.etablissement_siege == 'true'
+    ).distinct().order_by('dept').all()
+
+    return jsonify([r.dept for r in results if r.dept])
+
+
+@search_bp.route('/filters/villes')
+def get_villes():
+    """Liste des villes uniques (sièges uniquement)"""
+    dept = request.args.get('dept', '').strip()
+
+    query = db.session.query(
+        Etablissement.libelle_commune
+    ).filter(
+        Etablissement.libelle_commune.isnot(None),
+        Etablissement.etablissement_siege == 'true'
+    )
+
+    if dept:
+        query = query.filter(Etablissement.code_postal.like(f"{dept}%"))
+
+    results = query.distinct().order_by(Etablissement.libelle_commune).limit(500).all()
+
+    return jsonify([r.libelle_commune for r in results if r.libelle_commune])
+
+
+@search_bp.route('/filters/naf')
+def get_codes_naf():
+    """Liste des codes NAF uniques"""
+    results = db.session.query(
+        UniteLegale.activite_principale
+    ).filter(
+        UniteLegale.activite_principale.isnot(None),
+        UniteLegale.etat_administratif == 'A'
+    ).distinct().order_by(UniteLegale.activite_principale).all()
+
+    return jsonify([r.activite_principale for r in results if r.activite_principale])

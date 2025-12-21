@@ -337,7 +337,7 @@ def export_search_excel():
             query = query.filter(UniteLegale.denomination.ilike(f"{q}%"))
 
     if activite:
-        query = query.filter(UniteLegale.activite_principale.like(f"{activite}%"))
+        query = query.filter(UniteLegale.activite_principale == activite)
     if categorie:
         query = query.filter(UniteLegale.categorie_entreprise == categorie)
     if etat:
@@ -350,7 +350,7 @@ def export_search_excel():
         if code_postal:
             subquery = subquery.filter(Etablissement.code_postal.like(f"{code_postal}%"))
         if ville:
-            subquery = subquery.filter(Etablissement.libelle_commune.ilike(f"{ville}%"))
+            subquery = subquery.filter(Etablissement.libelle_commune == ville)
         query = query.filter(UniteLegale.siren.in_(subquery))
 
     entreprises = query.limit(10000).all()
@@ -518,7 +518,7 @@ def export_search_csv():
             query = query.filter(UniteLegale.denomination.ilike(f"{q}%"))
 
     if activite:
-        query = query.filter(UniteLegale.activite_principale.like(f"{activite}%"))
+        query = query.filter(UniteLegale.activite_principale == activite)
     if categorie:
         query = query.filter(UniteLegale.categorie_entreprise == categorie)
     if etat:
@@ -531,7 +531,7 @@ def export_search_csv():
         if code_postal:
             subquery = subquery.filter(Etablissement.code_postal.like(f"{code_postal}%"))
         if ville:
-            subquery = subquery.filter(Etablissement.libelle_commune.ilike(f"{ville}%"))
+            subquery = subquery.filter(Etablissement.libelle_commune == ville)
         query = query.filter(UniteLegale.siren.in_(subquery))
 
     entreprises = query.limit(10000).all()
