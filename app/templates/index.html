@@ -29,10 +29,6 @@
                     Rechercher
                 </button>
             </form>
-
-            <!-- Autocomplete dropdown -->
-            <div id="autocomplete-results" class="hidden absolute z-10 w-full max-w-2xl bg-white border rounded-lg shadow-lg mt-1">
-            </div>
         </div>
 
         <!-- Quick search examples -->
@@ -94,45 +90,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    const searchInput = document.getElementById('search-input');
-    const autocompleteResults = document.getElementById('autocomplete-results');
-    let debounceTimer;
-
-    searchInput.addEventListener('input', function() {
-        clearTimeout(debounceTimer);
-        const query = this.value.trim();
-
-        if (query.length < 2) {
-            autocompleteResults.classList.add('hidden');
-            return;
-        }
-
-        debounceTimer = setTimeout(() => {
-            fetch(`/search/autocomplete?q=${encodeURIComponent(query)}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.length === 0) {
-                        autocompleteResults.classList.add('hidden');
-                        return;
-                    }
-
-                    autocompleteResults.innerHTML = data.map(item => `
-                        <a href="/entreprise/${item.siren}" class="block px-4 py-3 hover:bg-gray-50 border-b last:border-b-0">
-                            <div class="font-medium text-gray-900">${item.denomination || 'Sans nom'}</div>
-                            <div class="text-sm text-gray-500">${item.siren}</div>
-                        </a>
-                    `).join('');
-                    autocompleteResults.classList.remove('hidden');
-                });
-        }, 300);
-    });
-
-    // Hide autocomplete on click outside
-    document.addEventListener('click', function(e) {
-        if (!searchInput.contains(e.target) && !autocompleteResults.contains(e.target)) {
-            autocompleteResults.classList.add('hidden');
-        }
-    });
-</script>
+<!-- Autocomplete désactivé pour réduire la charge serveur -->
+<!-- La recherche se fait uniquement via le bouton "Rechercher" -->
 {% endblock %}
