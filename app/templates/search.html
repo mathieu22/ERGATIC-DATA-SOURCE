@@ -46,29 +46,6 @@
                         </select>
                     </div>
 
-                    <!-- Catégorie entreprise -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Taille</label>
-                        <select name="categorie" id="filter-categorie"
-                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
-                            <option value="">Toutes</option>
-                            <option value="PME">PME</option>
-                            <option value="ETI">ETI</option>
-                            <option value="GE">Grande entreprise</option>
-                        </select>
-                    </div>
-
-                    <!-- État -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">État</label>
-                        <select name="etat" id="filter-etat"
-                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
-                            <option value="">Tous</option>
-                            <option value="A" selected>Actives uniquement</option>
-                            <option value="C">Cessées uniquement</option>
-                        </select>
-                    </div>
-
                     <button type="submit"
                         class="w-full bg-primary text-white py-2 rounded-lg hover:bg-secondary transition-colors">
                         Rechercher
@@ -190,8 +167,6 @@
 
         document.getElementById('filter-q').value = urlParams.get('q') || '';
         filterCp.value = cpValue;
-        document.getElementById('filter-categorie').value = urlParams.get('categorie') || '';
-        document.getElementById('filter-etat').value = urlParams.get('etat') || 'A';
         filterActivite.value = urlParams.get('activite') || '';
 
         // Charger les villes si un département est sélectionné
@@ -213,7 +188,6 @@
 
     document.getElementById('reset-filters').addEventListener('click', function() {
         form.reset();
-        document.getElementById('filter-etat').value = 'A';
         filterVille.innerHTML = '<option value="">Toutes les villes</option>';
         resultsContainer.innerHTML = '';
         countText.textContent = 'Entrez vos critères de recherche';
