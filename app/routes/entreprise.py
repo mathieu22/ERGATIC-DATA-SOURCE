@@ -29,7 +29,7 @@ def detail(siren):
     siege = None
     autres = []
     for etab in etablissements:
-        if etab.etablissement_siege:
+        if etab.est_siege:  # Utiliser la propriété qui gère TEXT 'true'/'false'
             siege = etab
         else:
             autres.append(etab)
@@ -88,7 +88,7 @@ def detail_by_siret(siret):
         ).first(),
         etablissements=db.session.query(Etablissement).filter(
             Etablissement.siren == etab.siren,
-            Etablissement.etablissement_siege == False
+            Etablissement.etablissement_siege != 'true'
         ).all(),
         total_etablissements=db.session.query(Etablissement).filter_by(siren=etab.siren).count(),
         highlight_siret=siret
