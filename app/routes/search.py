@@ -182,49 +182,75 @@ def autocomplete():
 
 # ============================================
 # API pour les listes de valeurs uniques
+# Utilise les materialized views pour performance
 # ============================================
 
 @search_bp.route('/filters/codes-postaux')
 def get_codes_postaux():
-    """Liste des codes postaux uniques (2 premiers chiffres = département)"""
-    results = db.session.query(
-        func.substr(Etablissement.code_postal, 1, 2).label('dept')
-    ).filter(
-        Etablissement.code_postal.isnot(None),
-        Etablissement.etablissement_siege == 'true'
-    ).distinct().order_by('dept').all()
-
-    return jsonify([r.dept for r in results if r.dept])
+    """Liste des départements (depuis vue matérialisée)"""
+    try:
+        # Utiliser la vue matérialisée si elle existe
+        results = db.session.execute(
+            db.text("SELECT code_departement FROM mv_departements ORDER BY code_departement")
+        ).fetchall()
+        return jsonify([r[0] for r in results if r[0]])
+    except Exception:
+        # Fallback sur requête normale si la vue n'existe pas
+        results = db.session.query(
+            func.substr(Etablissement.code_postal, 1, 2).label('dept')
+        ).filter(
+            Etablissement.code_postal.isnot(None),
+            Etablissement.etablissement_siege == 'true'
+        ).distinct().order_by('dept').all()
+        return jsonify([r.dept for r in results if r.dept])
 
 
 @search_bp.route('/filters/villes')
 def get_villes():
-    """Liste des villes uniques (sièges uniquement)"""
+    """Liste des villes (depuis vue matérialisée)"""
     dept = request.args.get('dept', '').strip()
 
-    query = db.session.query(
-        Etablissement.libelle_commune
-    ).filter(
-        Etablissement.libelle_commune.isnot(None),
-        Etablissement.etablissement_siege == 'true'
-    )
-
-    if dept:
-        query = query.filter(Etablissement.code_postal.like(f"{dept}%"))
-
-    results = query.distinct().order_by(Etablissement.libelle_commune).limit(500).all()
-
-    return jsonify([r.libelle_commune for r in results if r.libelle_commune])
+    try:
+        # Utiliser la vue matérialisée si elle existe
+        if dept:
+            results = db.session.execute(
+                db.text("SELECT ville FROM mv_villes WHERE code_departement = :dept ORDER BY ville"),
+                {"dept": dept}
+            ).fetchall()
+        else:
+            results = db.session.execute(
+                db.text("SELECT ville FROM mv_villes ORDER BY ville LIMIT 500")
+            ).fetchall()
+        return jsonify([r[0] for r in results if r[0]])
+    except Exception:
+        # Fallback sur requête normale
+        query = db.session.query(
+            Etablissement.libelle_commune
+        ).filter(
+            Etablissement.libelle_commune.isnot(None),
+            Etablissement.etablissement_siege == 'true'
+        )
+        if dept:
+            query = query.filter(Etablissement.code_postal.like(f"{dept}%"))
+        results = query.distinct().order_by(Etablissement.libelle_commune).limit(500).all()
+        return jsonify([r.libelle_commune for r in results if r.libelle_commune])
 
 
 @search_bp.route('/filters/naf')
 def get_codes_naf():
-    """Liste des codes NAF uniques"""
-    results = db.session.query(
-        UniteLegale.activite_principale
-    ).filter(
-        UniteLegale.activite_principale.isnot(None),
-        UniteLegale.etat_administratif == 'A'
-    ).distinct().order_by(UniteLegale.activite_principale).all()
-
-    return jsonify([r.activite_principale for r in results if r.activite_principale])
+    """Liste des codes NAF (depuis vue matérialisée)"""
+    try:
+        # Utiliser la vue matérialisée si elle existe
+        results = db.session.execute(
+            db.text("SELECT code_naf FROM mv_codes_naf ORDER BY code_naf")
+        ).fetchall()
+        return jsonify([r[0] for r in results if r[0]])
+    except Exception:
+        # Fallback sur requête normale
+        results = db.session.query(
+            UniteLegale.activite_principale
+        ).filter(
+            UniteLegale.activite_principale.isnot(None),
+            UniteLegale.etat_administratif == 'A'
+        ).distinct().order_by(UniteLegale.activite_principale).all()
+        return jsonify([r.activite_principale for r in results if r.activite_principale])
