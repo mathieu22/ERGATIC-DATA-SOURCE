@@ -218,7 +218,7 @@ def export_csv():
     for e in entreprises:
         siege = db.session.query(Etablissement).filter_by(
             siren=e.siren,
-            etablissement_siege=True
+            etablissement_siege='true'
         ).first()
 
         lat, lon = (None, None)
@@ -350,7 +350,7 @@ def export_search_excel():
 
     if code_postal or ville:
         subquery = db.session.query(Etablissement.siren).filter(
-            Etablissement.etablissement_siege == True
+            Etablissement.etablissement_siege == 'true'
         )
         if code_postal:
             subquery = subquery.filter(Etablissement.code_postal.like(f"{code_postal}%"))
@@ -391,7 +391,7 @@ def export_search_excel():
     for row_idx, e in enumerate(entreprises, start=2):
         siege = db.session.query(Etablissement).filter_by(
             siren=e.siren,
-            etablissement_siege=True
+            etablissement_siege='true'
         ).first()
 
         lat, lon = (None, None)
@@ -535,7 +535,7 @@ def export_search_csv():
 
     if code_postal or ville:
         subquery = db.session.query(Etablissement.siren).filter(
-            Etablissement.etablissement_siege == True
+            Etablissement.etablissement_siege == 'true'
         )
         if code_postal:
             subquery = subquery.filter(Etablissement.code_postal.like(f"{code_postal}%"))
@@ -558,7 +558,7 @@ def export_search_csv():
     for e in entreprises:
         siege = db.session.query(Etablissement).filter_by(
             siren=e.siren,
-            etablissement_siege=True
+            etablissement_siege='true'
         ).first()
 
         lat, lon = (None, None)

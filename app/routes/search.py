@@ -70,7 +70,7 @@ def search_api():
     # Filtre géographique (via établissement siège)
     if code_postal or ville:
         subquery = db.session.query(Etablissement.siren).filter(
-            Etablissement.etablissement_siege == True
+            Etablissement.etablissement_siege == 'true'
         )
         if code_postal:
             subquery = subquery.filter(Etablissement.code_postal.like(f"{code_postal}%"))
@@ -94,7 +94,7 @@ def search_api():
         # Récupérer info du siège
         siege = db.session.query(Etablissement).filter_by(
             siren=ul.siren,
-            etablissement_siege=True
+            etablissement_siege='true'
         ).first()
         if siege:
             data['siege'] = {
@@ -137,7 +137,7 @@ def search_batch():
         data = ul.to_dict()
         siege = db.session.query(Etablissement).filter_by(
             siren=ul.siren,
-            etablissement_siege=True
+            etablissement_siege='true'
         ).first()
         if siege:
             data['siege'] = siege.to_dict()

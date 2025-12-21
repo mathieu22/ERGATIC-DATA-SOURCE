@@ -84,7 +84,7 @@ def detail_by_siret(siret):
         entreprise=etab.unite_legale,
         siege=db.session.query(Etablissement).filter_by(
             siren=etab.siren,
-            etablissement_siege=True
+            etablissement_siege='true'
         ).first(),
         etablissements=db.session.query(Etablissement).filter(
             Etablissement.siren == etab.siren,
