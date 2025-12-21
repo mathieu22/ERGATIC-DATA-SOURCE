@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify, Response, send_file
-from sqlalchemy import or_
 from app.models import UniteLegale, Etablissement
 from app.models.unite_legale import format_date
 from app import db
@@ -330,16 +329,12 @@ def export_search_excel():
 
     query = db.session.query(UniteLegale)
 
+    # Recherche textuelle (limité à denomination et siren pour performance)
     if q:
-        search_term = f"%{q}%"
-        query = query.filter(
-            or_(
-                UniteLegale.denomination.ilike(search_term),
-                UniteLegale.sigle.ilike(search_term),
-                UniteLegale.nom.ilike(search_term),
-                UniteLegale.siren.like(search_term)
-            )
-        )
+        if q.isdigit() and len(q) == 9:
+            query = query.filter(UniteLegale.siren == q)
+        else:
+            query = query.filter(UniteLegale.denomination.ilike(f"{q}%"))
 
     if activite:
         query = query.filter(UniteLegale.activite_principale.like(f"{activite}%"))
@@ -355,7 +350,7 @@ def export_search_excel():
         if code_postal:
             subquery = subquery.filter(Etablissement.code_postal.like(f"{code_postal}%"))
         if ville:
-            subquery = subquery.filter(Etablissement.libelle_commune.ilike(f"%{ville}%"))
+            subquery = subquery.filter(Etablissement.libelle_commune.ilike(f"{ville}%"))
         query = query.filter(UniteLegale.siren.in_(subquery))
 
     entreprises = query.limit(10000).all()
@@ -515,16 +510,12 @@ def export_search_csv():
 
     query = db.session.query(UniteLegale)
 
+    # Recherche textuelle (limité à denomination et siren pour performance)
     if q:
-        search_term = f"%{q}%"
-        query = query.filter(
-            or_(
-                UniteLegale.denomination.ilike(search_term),
-                UniteLegale.sigle.ilike(search_term),
-                UniteLegale.nom.ilike(search_term),
-                UniteLegale.siren.like(search_term)
-            )
-        )
+        if q.isdigit() and len(q) == 9:
+            query = query.filter(UniteLegale.siren == q)
+        else:
+            query = query.filter(UniteLegale.denomination.ilike(f"{q}%"))
 
     if activite:
         query = query.filter(UniteLegale.activite_principale.like(f"{activite}%"))
@@ -540,7 +531,7 @@ def export_search_csv():
         if code_postal:
             subquery = subquery.filter(Etablissement.code_postal.like(f"{code_postal}%"))
         if ville:
-            subquery = subquery.filter(Etablissement.libelle_commune.ilike(f"%{ville}%"))
+            subquery = subquery.filter(Etablissement.libelle_commune.ilike(f"{ville}%"))
         query = query.filter(UniteLegale.siren.in_(subquery))
 
     entreprises = query.limit(10000).all()

@@ -45,17 +45,14 @@ def search_api():
         else:
             return jsonify({'results': [], 'total': 0, 'page': page, 'pages': 0})
 
-    # Recherche textuelle
+    # Recherche textuelle (limité à denomination et siren pour performance)
     elif q:
-        search_term = f"%{q}%"
-        query = query.filter(
-            or_(
-                UniteLegale.denomination.ilike(search_term),
-                UniteLegale.sigle.ilike(search_term),
-                UniteLegale.nom.ilike(search_term),
-                UniteLegale.siren.like(search_term)
-            )
-        )
+        # Si c'est un SIREN (9 chiffres), recherche exacte
+        if q.isdigit() and len(q) == 9:
+            query = query.filter(UniteLegale.siren == q)
+        # Sinon recherche par préfixe sur denomination (utilise l'index)
+        else:
+            query = query.filter(UniteLegale.denomination.ilike(f"{q}%"))
 
     # Filtres additionnels
     if activite:
@@ -75,7 +72,7 @@ def search_api():
         if code_postal:
             subquery = subquery.filter(Etablissement.code_postal.like(f"{code_postal}%"))
         if ville:
-            subquery = subquery.filter(Etablissement.libelle_commune.ilike(f"%{ville}%"))
+            subquery = subquery.filter(Etablissement.libelle_commune.ilike(f"{ville}%"))
         query = query.filter(UniteLegale.siren.in_(subquery))
 
     # Tri par pertinence (entreprises actives d'abord)
