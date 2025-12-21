@@ -1,58 +1,69 @@
 -- ============================================
 -- SCHEMA SIRENE - Base de données entreprises
 -- Projet PAPPERS
+-- Version avec colonnes TEXT pour éviter les troncations
 -- ============================================
+
+-- Extension pour recherche floue (fuzzy search)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Supprimer les vues et tables existantes
+DROP VIEW IF EXISTS v_entreprise_complete CASCADE;
+DROP TABLE IF EXISTS etablissement CASCADE;
+DROP TABLE IF EXISTS unite_legale CASCADE;
+DROP TABLE IF EXISTS ref_naf CASCADE;
+DROP TABLE IF EXISTS ref_categorie_juridique CASCADE;
 
 -- Table des unités légales (entreprises)
 CREATE TABLE unite_legale (
-    siren VARCHAR(9) PRIMARY KEY,
+    siren TEXT PRIMARY KEY,
 
     -- Identification
-    denomination VARCHAR(255),
-    denomination_usuelle_1 VARCHAR(255),
-    denomination_usuelle_2 VARCHAR(255),
-    denomination_usuelle_3 VARCHAR(255),
-    sigle VARCHAR(50),
+    denomination TEXT,
+    denomination_usuelle_1 TEXT,
+    denomination_usuelle_2 TEXT,
+    denomination_usuelle_3 TEXT,
+    sigle TEXT,
 
     -- Personne physique (si applicable)
-    nom VARCHAR(100),
-    nom_usage VARCHAR(100),
-    prenom_1 VARCHAR(100),
-    prenom_2 VARCHAR(100),
-    prenom_3 VARCHAR(100),
-    prenom_4 VARCHAR(100),
-    prenom_usuel VARCHAR(100),
-    pseudonyme VARCHAR(100),
-    sexe CHAR(1),
+    nom TEXT,
+    nom_usage TEXT,
+    prenom_1 TEXT,
+    prenom_2 TEXT,
+    prenom_3 TEXT,
+    prenom_4 TEXT,
+    prenom_usuel TEXT,
+    pseudonyme TEXT,
+    sexe TEXT,
 
     -- Caractéristiques
-    categorie_juridique VARCHAR(10),
-    activite_principale VARCHAR(10),
-    nomenclature_activite VARCHAR(10),
-    categorie_entreprise VARCHAR(5),       -- PME, ETI, GE
-    tranche_effectifs VARCHAR(5),
-    annee_effectifs INTEGER,
+    categorie_juridique TEXT,
+    activite_principale TEXT,
+    nomenclature_activite TEXT,
+    categorie_entreprise TEXT,
+    tranche_effectifs TEXT,
+    annee_effectifs TEXT,
 
     -- Statut
-    etat_administratif CHAR(1),            -- A=Actif, C=Cessé
-    economie_sociale_solidaire CHAR(1),
-    societe_mission CHAR(1),
-    caractere_employeur CHAR(1),
+    etat_administratif TEXT,
+    economie_sociale_solidaire TEXT,
+    societe_mission TEXT,
+    caractere_employeur TEXT,
 
     -- Dates
-    date_creation DATE,
-    date_debut DATE,
-    date_dernier_traitement TIMESTAMP,
+    date_creation TEXT,
+    date_debut TEXT,
+    date_dernier_traitement TEXT,
 
     -- Siège
-    nic_siege VARCHAR(5),
+    nic_siege TEXT,
 
     -- Autres
-    identifiant_association VARCHAR(20),
-    statut_diffusion CHAR(1),
-    nombre_periodes INTEGER,
-    unite_purgee CHAR(1),
-    annee_categorie_entreprise INTEGER,
+    identifiant_association TEXT,
+    statut_diffusion TEXT,
+    nombre_periodes TEXT,
+    unite_purgee TEXT,
+    annee_categorie_entreprise TEXT,
 
     -- Métadonnées
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -60,75 +71,75 @@ CREATE TABLE unite_legale (
 
 -- Table des établissements
 CREATE TABLE etablissement (
-    siret VARCHAR(14) PRIMARY KEY,
-    siren VARCHAR(9) NOT NULL REFERENCES unite_legale(siren),
-    nic VARCHAR(5) NOT NULL,
+    siret TEXT PRIMARY KEY,
+    siren TEXT NOT NULL,
+    nic TEXT NOT NULL,
 
     -- Caractéristiques
-    etablissement_siege BOOLEAN,
-    etat_administratif CHAR(1),            -- A=Actif, F=Fermé
-    activite_principale VARCHAR(10),
-    nomenclature_activite VARCHAR(10),
-    activite_registre_metiers VARCHAR(10),
-    tranche_effectifs VARCHAR(5),
-    annee_effectifs INTEGER,
-    caractere_employeur CHAR(1),
+    etablissement_siege TEXT,
+    etat_administratif TEXT,
+    activite_principale TEXT,
+    nomenclature_activite TEXT,
+    activite_registre_metiers TEXT,
+    tranche_effectifs TEXT,
+    annee_effectifs TEXT,
+    caractere_employeur TEXT,
 
     -- Dénomination
-    denomination_usuelle VARCHAR(255),
-    enseigne_1 VARCHAR(255),
-    enseigne_2 VARCHAR(255),
-    enseigne_3 VARCHAR(255),
+    denomination_usuelle TEXT,
+    enseigne_1 TEXT,
+    enseigne_2 TEXT,
+    enseigne_3 TEXT,
 
     -- Adresse principale
-    numero_voie VARCHAR(10),
-    indice_repetition VARCHAR(5),
-    dernier_numero_voie VARCHAR(10),
-    indice_repetition_dernier VARCHAR(5),
-    type_voie VARCHAR(10),
-    libelle_voie VARCHAR(255),
-    complement_adresse VARCHAR(255),
-    distribution_speciale VARCHAR(100),
-    code_postal VARCHAR(10),
-    libelle_commune VARCHAR(100),
-    code_commune VARCHAR(10),
-    code_cedex VARCHAR(10),
-    libelle_cedex VARCHAR(100),
+    numero_voie TEXT,
+    indice_repetition TEXT,
+    dernier_numero_voie TEXT,
+    indice_repetition_dernier TEXT,
+    type_voie TEXT,
+    libelle_voie TEXT,
+    complement_adresse TEXT,
+    distribution_speciale TEXT,
+    code_postal TEXT,
+    libelle_commune TEXT,
+    code_commune TEXT,
+    code_cedex TEXT,
+    libelle_cedex TEXT,
 
     -- Adresse à l'étranger
-    code_pays_etranger VARCHAR(10),
-    libelle_pays_etranger VARCHAR(100),
-    libelle_commune_etranger VARCHAR(100),
+    code_pays_etranger TEXT,
+    libelle_pays_etranger TEXT,
+    libelle_commune_etranger TEXT,
 
     -- Adresse secondaire (si différente)
-    numero_voie_2 VARCHAR(10),
-    indice_repetition_2 VARCHAR(5),
-    type_voie_2 VARCHAR(10),
-    libelle_voie_2 VARCHAR(255),
-    complement_adresse_2 VARCHAR(255),
-    distribution_speciale_2 VARCHAR(100),
-    code_postal_2 VARCHAR(10),
-    libelle_commune_2 VARCHAR(100),
-    code_commune_2 VARCHAR(10),
-    code_cedex_2 VARCHAR(10),
-    libelle_cedex_2 VARCHAR(100),
-    code_pays_etranger_2 VARCHAR(10),
-    libelle_pays_etranger_2 VARCHAR(100),
-    libelle_commune_etranger_2 VARCHAR(100),
+    numero_voie_2 TEXT,
+    indice_repetition_2 TEXT,
+    type_voie_2 TEXT,
+    libelle_voie_2 TEXT,
+    complement_adresse_2 TEXT,
+    distribution_speciale_2 TEXT,
+    code_postal_2 TEXT,
+    libelle_commune_2 TEXT,
+    code_commune_2 TEXT,
+    code_cedex_2 TEXT,
+    libelle_cedex_2 TEXT,
+    code_pays_etranger_2 TEXT,
+    libelle_pays_etranger_2 TEXT,
+    libelle_commune_etranger_2 TEXT,
 
     -- Géolocalisation
-    coordonnee_lambert_x DECIMAL(15, 2),
-    coordonnee_lambert_y DECIMAL(15, 2),
-    identifiant_adresse VARCHAR(50),
+    coordonnee_lambert_x TEXT,
+    coordonnee_lambert_y TEXT,
+    identifiant_adresse TEXT,
 
     -- Dates
-    date_creation DATE,
-    date_debut DATE,
-    date_dernier_traitement TIMESTAMP,
+    date_creation TEXT,
+    date_debut TEXT,
+    date_dernier_traitement TEXT,
 
     -- Autres
-    statut_diffusion CHAR(1),
-    nombre_periodes INTEGER,
+    statut_diffusion TEXT,
+    nombre_periodes TEXT,
 
     -- Métadonnées
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -162,11 +173,6 @@ CREATE INDEX idx_etab_siren_siege ON etablissement(siren, etablissement_siege);
 CREATE INDEX idx_etab_cp_activite ON etablissement(code_postal, activite_principale);
 
 -- ============================================
--- Extension pour recherche floue (fuzzy search)
--- ============================================
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-
--- ============================================
 -- Vue pour faciliter les requêtes
 -- ============================================
 CREATE VIEW v_entreprise_complete AS
@@ -183,28 +189,28 @@ SELECT
     -- Siège
     e.siret AS siret_siege,
     e.denomination_usuelle AS denomination_siege,
-    e.numero_voie || ' ' || COALESCE(e.type_voie, '') || ' ' || COALESCE(e.libelle_voie, '') AS adresse_siege,
+    CONCAT(e.numero_voie, ' ', COALESCE(e.type_voie, ''), ' ', COALESCE(e.libelle_voie, '')) AS adresse_siege,
     e.code_postal AS cp_siege,
     e.libelle_commune AS ville_siege,
     e.activite_principale AS activite_siege,
     e.etat_administratif AS etat_siege
 FROM unite_legale ul
-LEFT JOIN etablissement e ON ul.siren = e.siren AND e.etablissement_siege = true;
+LEFT JOIN etablissement e ON ul.siren = e.siren AND e.etablissement_siege = 'true';
 
 -- ============================================
 -- Table de référence des codes NAF (à remplir)
 -- ============================================
 CREATE TABLE ref_naf (
-    code VARCHAR(10) PRIMARY KEY,
-    libelle VARCHAR(255),
-    section VARCHAR(5),
-    libelle_section VARCHAR(100)
+    code TEXT PRIMARY KEY,
+    libelle TEXT,
+    section TEXT,
+    libelle_section TEXT
 );
 
 -- ============================================
 -- Table de référence des catégories juridiques
 -- ============================================
 CREATE TABLE ref_categorie_juridique (
-    code VARCHAR(10) PRIMARY KEY,
-    libelle VARCHAR(255)
+    code TEXT PRIMARY KEY,
+    libelle TEXT
 );

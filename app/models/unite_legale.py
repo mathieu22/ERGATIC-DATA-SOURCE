@@ -5,54 +5,54 @@ class UniteLegale(db.Model):
     """Modèle pour les unités légales (entreprises)"""
     __tablename__ = 'unite_legale'
 
-    siren = db.Column(db.String(9), primary_key=True)
+    siren = db.Column(db.Text, primary_key=True)
 
     # Identification
-    denomination = db.Column(db.String(255), index=True)
-    denomination_usuelle_1 = db.Column(db.String(255))
-    denomination_usuelle_2 = db.Column(db.String(255))
-    denomination_usuelle_3 = db.Column(db.String(255))
-    sigle = db.Column(db.String(50))
+    denomination = db.Column(db.Text, index=True)
+    denomination_usuelle_1 = db.Column(db.Text)
+    denomination_usuelle_2 = db.Column(db.Text)
+    denomination_usuelle_3 = db.Column(db.Text)
+    sigle = db.Column(db.Text)
 
     # Personne physique
-    nom = db.Column(db.String(100))
-    nom_usage = db.Column(db.String(100))
-    prenom_1 = db.Column(db.String(100))
-    prenom_2 = db.Column(db.String(100))
-    prenom_3 = db.Column(db.String(100))
-    prenom_4 = db.Column(db.String(100))
-    prenom_usuel = db.Column(db.String(100))
-    pseudonyme = db.Column(db.String(100))
-    sexe = db.Column(db.String(1))
+    nom = db.Column(db.Text)
+    nom_usage = db.Column(db.Text)
+    prenom_1 = db.Column(db.Text)
+    prenom_2 = db.Column(db.Text)
+    prenom_3 = db.Column(db.Text)
+    prenom_4 = db.Column(db.Text)
+    prenom_usuel = db.Column(db.Text)
+    pseudonyme = db.Column(db.Text)
+    sexe = db.Column(db.Text)
 
     # Caractéristiques
-    categorie_juridique = db.Column(db.String(10), index=True)
-    activite_principale = db.Column(db.String(10), index=True)
-    nomenclature_activite = db.Column(db.String(10))
-    categorie_entreprise = db.Column(db.String(5), index=True)
-    tranche_effectifs = db.Column(db.String(5), index=True)
-    annee_effectifs = db.Column(db.Integer)
+    categorie_juridique = db.Column(db.Text, index=True)
+    activite_principale = db.Column(db.Text, index=True)
+    nomenclature_activite = db.Column(db.Text)
+    categorie_entreprise = db.Column(db.Text, index=True)
+    tranche_effectifs = db.Column(db.Text, index=True)
+    annee_effectifs = db.Column(db.Text)
 
     # Statut
-    etat_administratif = db.Column(db.String(1), index=True)
-    economie_sociale_solidaire = db.Column(db.String(1))
-    societe_mission = db.Column(db.String(1))
-    caractere_employeur = db.Column(db.String(1))
+    etat_administratif = db.Column(db.Text, index=True)
+    economie_sociale_solidaire = db.Column(db.Text)
+    societe_mission = db.Column(db.Text)
+    caractere_employeur = db.Column(db.Text)
 
-    # Dates
-    date_creation = db.Column(db.Date)
-    date_debut = db.Column(db.Date)
-    date_dernier_traitement = db.Column(db.DateTime)
+    # Dates (stockées comme TEXT)
+    date_creation = db.Column(db.Text)
+    date_debut = db.Column(db.Text)
+    date_dernier_traitement = db.Column(db.Text)
 
     # Siège
-    nic_siege = db.Column(db.String(5))
+    nic_siege = db.Column(db.Text)
 
     # Autres
-    identifiant_association = db.Column(db.String(20))
-    statut_diffusion = db.Column(db.String(1))
-    nombre_periodes = db.Column(db.Integer)
-    unite_purgee = db.Column(db.String(1))
-    annee_categorie_entreprise = db.Column(db.Integer)
+    identifiant_association = db.Column(db.Text)
+    statut_diffusion = db.Column(db.Text)
+    nombre_periodes = db.Column(db.Text)
+    unite_purgee = db.Column(db.Text)
+    annee_categorie_entreprise = db.Column(db.Text)
 
     # Relations
     etablissements = db.relationship('Etablissement', backref='unite_legale', lazy='dynamic')
@@ -89,7 +89,7 @@ class UniteLegale(db.Model):
             'tranche_effectifs': self.tranche_effectifs,
             'etat_administratif': self.etat_administratif,
             'est_active': self.est_active,
-            'date_creation': self.date_creation.isoformat() if self.date_creation else None,
+            'date_creation': self.date_creation,
             'siret_siege': self.siret_siege
         }
 

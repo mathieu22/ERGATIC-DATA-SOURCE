@@ -42,3 +42,5 @@ postgres_data/
 tmp/
 temp/
 *.tmp
+
+._*

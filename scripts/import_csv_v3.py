@@ -2,11 +2,12 @@
 """
 Script d'import des fichiers CSV SIRENE dans PostgreSQL
 Optimisé pour fichiers volumineux (2+ Go) avec gestion mémoire
+Compatible psycopg3
 
 Usage:
-    python scripts/import_csv.py --unite-legale /chemin/vers/StockUniteLegale.csv
-    python scripts/import_csv.py --etablissement /chemin/vers/StockEtablissement.csv
-    python scripts/import_csv.py --all /chemin/vers/dossier/
+    python scripts/import_csv_v3.py --unite-legale /chemin/vers/StockUniteLegale.csv
+    python scripts/import_csv_v3.py --etablissement /chemin/vers/StockEtablissement.csv
+    python scripts/import_csv_v3.py --all /chemin/vers/dossier/
 """
 
 import os
@@ -24,13 +25,14 @@ load_dotenv()
 # Configuration
 DB_CONFIG = {
     'host': os.getenv('POSTGRES_HOST', 'localhost'),
-    'port': os.getenv('POSTGRES_PORT', '5432'),
+    'port': os.getenv('POSTGRES_PORT', '5433'),
     'dbname': os.getenv('POSTGRES_DB', 'sirene'),
     'user': os.getenv('POSTGRES_USER', 'pappers'),
     'password': os.getenv('POSTGRES_PASSWORD', 'pappers_secure_2024')
 }
 
 print(DB_CONFIG)
+
 # Taille des chunks pour lecture (64 Mo)
 CHUNK_SIZE = 64 * 1024 * 1024
 
@@ -171,8 +173,7 @@ def print_progress(current, total, start_time, prefix=""):
 def get_connection():
     """Crée une connexion à la base de données"""
     conn = psycopg.connect(**DB_CONFIG)
-    # Optimisations pour import massif
-    conn.set_session(autocommit=False)
+    conn.autocommit = False
     return conn
 
 
@@ -193,34 +194,14 @@ def restore_database(cursor, table_name):
     cursor.execute(f"ALTER TABLE {table_name} ENABLE TRIGGER ALL")
 
 
-def count_lines_fast(filepath):
-    """Compte les lignes rapidement avec mmap (économe en mémoire)"""
-    print("Comptage des lignes...")
-    count = 0
-    with open(filepath, 'rb') as f:
-        # Utiliser mmap pour lecture efficace
-        try:
-            mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-            while mm.readline():
-                count += 1
-            mm.close()
-        except:
-            # Fallback si mmap échoue
-            f.seek(0)
-            for _ in f:
-                count += 1
-    return count - 1  # Moins l'en-tête
-
-
 def import_csv_streaming(filepath, table_name, mapping):
     """
-    Import CSV avec streaming - ne charge jamais le fichier entier en mémoire
-    Utilise PostgreSQL COPY qui est la méthode la plus efficace
+    Import CSV avec streaming - utilise PostgreSQL COPY via psycopg3
     """
     file_size = get_file_size(filepath)
 
     print(f"\n{'='*70}")
-    print(f"IMPORT CSV STREAMING")
+    print(f"IMPORT CSV STREAMING (psycopg3)")
     print(f"{'='*70}")
     print(f"Fichier     : {filepath}")
     print(f"Taille      : {format_size(file_size)}")
@@ -239,55 +220,30 @@ def import_csv_streaming(filepath, table_name, mapping):
 
         # Colonnes DB dans l'ordre du mapping
         db_columns = list(mapping.values())
-
-        # Commande COPY optimisée
-        copy_sql = sql.SQL("""
-            COPY {table} ({columns})
-            FROM STDIN
-            WITH (
-                FORMAT CSV,
-                HEADER TRUE,
-                DELIMITER ',',
-                NULL '',
-                ENCODING 'UTF8'
-            )
-        """).format(
-            table=sql.Identifier(table_name),
-            columns=sql.SQL(', ').join([sql.Identifier(c) for c in db_columns])
-        )
+        columns_str = ', '.join(db_columns)
 
         print("Import en cours (streaming)...")
         print("Cela peut prendre plusieurs minutes pour les gros fichiers.\n")
 
-        # Classe wrapper pour suivre la progression
-        class ProgressFile:
-            def __init__(self, file_obj, total_size, start_time):
-                self.file = file_obj
-                self.total = total_size
-                self.current = 0
-                self.start_time = start_time
-                self.last_update = 0
-
-            def read(self, size=-1):
-                data = self.file.read(size)
-                self.current += len(data)
-
-                # Mise à jour progress tous les 1%
-                if self.current - self.last_update > self.total * 0.01:
-                    print_progress(self.current, self.total, self.start_time, "Import: ")
-                    self.last_update = self.current
-
-                return data
-
-            def readline(self):
-                line = self.file.readline()
-                self.current += len(line)
-                return line
-
-        # Ouvrir et importer avec suivi de progression
+        # Utiliser COPY avec psycopg3
         with open(filepath, 'r', encoding='utf-8') as f:
-            progress_file = ProgressFile(f, file_size, start_time)
-            cursor.copy_expert(copy_sql, progress_file)
+            # Psycopg3 utilise copy() avec un context manager
+            with cursor.copy(f"COPY {table_name} ({columns_str}) FROM STDIN WITH (FORMAT CSV, HEADER TRUE, DELIMITER ',', NULL '')") as copy:
+                bytes_read = 0
+                last_update = 0
+
+                while True:
+                    chunk = f.read(CHUNK_SIZE)
+                    if not chunk:
+                        break
+
+                    copy.write(chunk.encode('utf-8'))
+                    bytes_read += len(chunk)
+
+                    # Mise à jour progress tous les 1%
+                    if bytes_read - last_update > file_size * 0.01:
+                        print_progress(bytes_read, file_size, start_time, "Import: ")
+                        last_update = bytes_read
 
         print()  # Nouvelle ligne après progress bar
 
@@ -324,20 +280,19 @@ def import_csv_streaming(filepath, table_name, mapping):
     finally:
         cursor.close()
         conn.close()
-        gc.collect()  # Libérer la mémoire
+        gc.collect()
 
 
 def import_csv_chunked(filepath, table_name, mapping, chunk_lines=50000):
     """
     Import CSV par chunks - fallback si COPY échoue
-    Traite le fichier par lots pour limiter la mémoire
     """
     import csv
 
     file_size = get_file_size(filepath)
 
     print(f"\n{'='*70}")
-    print(f"IMPORT CSV PAR CHUNKS")
+    print(f"IMPORT CSV PAR CHUNKS (psycopg3)")
     print(f"{'='*70}")
     print(f"Fichier      : {filepath}")
     print(f"Taille       : {format_size(file_size)}")
@@ -359,7 +314,7 @@ def import_csv_chunked(filepath, table_name, mapping, chunk_lines=50000):
         db_columns = list(mapping.values())
         csv_columns = list(mapping.keys())
 
-        # Préparer l'INSERT avec ON CONFLICT
+        # Préparer l'INSERT
         placeholders = ', '.join(['%s'] * len(db_columns))
         insert_sql = f"""
             INSERT INTO {table_name} ({', '.join(db_columns)})
@@ -369,14 +324,11 @@ def import_csv_chunked(filepath, table_name, mapping, chunk_lines=50000):
 
         print("Import par chunks en cours...\n")
 
-        # Lecture streaming avec csv.reader (plus léger que DictReader)
         with open(filepath, 'r', encoding='utf-8', buffering=CHUNK_SIZE) as f:
             reader = csv.reader(f)
-
-            # Lire l'en-tête
             header = next(reader)
 
-            # Créer le mapping index -> colonne
+            # Mapping index -> colonne
             col_indices = {}
             for csv_col in csv_columns:
                 try:
@@ -388,7 +340,6 @@ def import_csv_chunked(filepath, table_name, mapping, chunk_lines=50000):
             bytes_read = len(','.join(header))
 
             for row in reader:
-                # Extraire les valeurs dans le bon ordre
                 values = []
                 for csv_col in csv_columns:
                     idx = col_indices.get(csv_col)
@@ -402,7 +353,6 @@ def import_csv_chunked(filepath, table_name, mapping, chunk_lines=50000):
                 total_rows += 1
                 bytes_read += sum(len(c) for c in row) + len(row)
 
-                # Commit par chunk
                 if len(batch) >= chunk_lines:
                     cursor.executemany(insert_sql, batch)
                     conn.commit()
@@ -411,20 +361,17 @@ def import_csv_chunked(filepath, table_name, mapping, chunk_lines=50000):
                                    f"Import ({total_rows:,} lignes): ")
 
                     batch = []
-                    gc.collect()  # Libérer la mémoire
+                    gc.collect()
 
-            # Dernier batch
             if batch:
                 cursor.executemany(insert_sql, batch)
                 conn.commit()
 
         print()
 
-        # Restaurer
         restore_database(cursor, table_name)
         conn.commit()
 
-        # Stats
         elapsed = time.time() - start_time
         rate = total_rows / elapsed if elapsed > 0 else 0
 
@@ -456,18 +403,16 @@ def create_indexes(verbose=True):
         print("="*70 + "\n")
 
     conn = get_connection()
-    conn.autocommit = True  # Requis pour CREATE INDEX CONCURRENTLY
+    conn.autocommit = True
     cursor = conn.cursor()
 
     indexes = [
-        # Unite legale
         ('idx_ul_denomination', 'unite_legale', 'denomination'),
         ('idx_ul_activite', 'unite_legale', 'activite_principale'),
         ('idx_ul_categorie_juridique', 'unite_legale', 'categorie_juridique'),
         ('idx_ul_categorie_entreprise', 'unite_legale', 'categorie_entreprise'),
         ('idx_ul_etat', 'unite_legale', 'etat_administratif'),
         ('idx_ul_tranche_effectifs', 'unite_legale', 'tranche_effectifs'),
-        # Etablissement
         ('idx_etab_siren', 'etablissement', 'siren'),
         ('idx_etab_siege', 'etablissement', 'etablissement_siege'),
         ('idx_etab_etat', 'etablissement', 'etat_administratif'),
@@ -482,16 +427,13 @@ def create_indexes(verbose=True):
             if verbose:
                 print(f"  [{i}/{len(indexes)}] Création de {idx_name}...")
             cursor.execute(f'DROP INDEX IF EXISTS {idx_name}')
-            cursor.execute(f'CREATE INDEX CONCURRENTLY {idx_name} ON {table}({column})')
-            conn.commit()
+            cursor.execute(f'CREATE INDEX CONCURRENTLY IF NOT EXISTS {idx_name} ON {table}({column})')
 
-        # Index composites
         if verbose:
             print(f"  Création des index composites...")
 
         cursor.execute('DROP INDEX IF EXISTS idx_etab_siren_siege')
-        cursor.execute('CREATE INDEX idx_etab_siren_siege ON etablissement(siren, etablissement_siege)')
-        conn.commit()
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_etab_siren_siege ON etablissement(siren, etablissement_siege)')
 
         if verbose:
             print("\nIndex créés avec succès !")
@@ -502,17 +444,17 @@ def create_indexes(verbose=True):
 
 
 def analyze_tables(verbose=True):
-    """Met à jour les statistiques des tables pour l'optimiseur"""
+    """Met à jour les statistiques des tables"""
     if verbose:
         print("\nMise à jour des statistiques (ANALYZE)...")
 
     conn = get_connection()
+    conn.autocommit = True
     cursor = conn.cursor()
 
     try:
         cursor.execute('ANALYZE unite_legale')
         cursor.execute('ANALYZE etablissement')
-        conn.commit()
         if verbose:
             print("Statistiques mises à jour !")
     finally:
@@ -540,59 +482,39 @@ def check_database_connection():
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Import des fichiers CSV SIRENE dans PostgreSQL',
+        description='Import des fichiers CSV SIRENE dans PostgreSQL (psycopg3)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemples:
-  # Importer les unités légales
-  python import_csv.py -u /chemin/vers/StockUniteLegale_utf8.csv
-
-  # Importer les établissements
-  python import_csv.py -e /chemin/vers/StockEtablissement_utf8.csv
-
-  # Importer tout depuis un dossier
-  python import_csv.py --all /chemin/vers/dossier/
-
-  # Utiliser la méthode par chunks (si problème mémoire)
-  python import_csv.py -u fichier.csv --method chunked
+  python import_csv_v3.py -u /chemin/vers/StockUniteLegale_utf8.csv
+  python import_csv_v3.py -e /chemin/vers/StockEtablissement_utf8.csv
+  python import_csv_v3.py --all /chemin/vers/dossier/
+  python import_csv_v3.py -u fichier.csv --method chunked
         """
     )
 
-    parser.add_argument('--unite-legale', '-u',
-                        help='Chemin vers StockUniteLegale.csv')
-    parser.add_argument('--etablissement', '-e',
-                        help='Chemin vers StockEtablissement.csv')
-    parser.add_argument('--all', '-a',
-                        help='Dossier contenant les deux fichiers CSV')
-    parser.add_argument('--method', '-m',
-                        choices=['streaming', 'chunked'],
-                        default='streaming',
-                        help='Méthode d\'import (streaming=rapide COPY, chunked=par lots)')
-    parser.add_argument('--chunk-size', '-c',
-                        type=int, default=50000,
+    parser.add_argument('--unite-legale', '-u', help='Chemin vers StockUniteLegale.csv')
+    parser.add_argument('--etablissement', '-e', help='Chemin vers StockEtablissement.csv')
+    parser.add_argument('--all', '-a', help='Dossier contenant les deux fichiers CSV')
+    parser.add_argument('--method', '-m', choices=['streaming', 'chunked'], default='chunked',
+                        help='Méthode d\'import (streaming=COPY, chunked=par lots)')
+    parser.add_argument('--chunk-size', '-c', type=int, default=50000,
                         help='Nombre de lignes par chunk (défaut: 50000)')
-    parser.add_argument('--no-index',
-                        action='store_true',
-                        help='Ne pas créer les index après import')
-    parser.add_argument('--index-only',
-                        action='store_true',
-                        help='Créer uniquement les index (sans import)')
+    parser.add_argument('--no-index', action='store_true', help='Ne pas créer les index après import')
+    parser.add_argument('--index-only', action='store_true', help='Créer uniquement les index')
 
     args = parser.parse_args()
 
-    # Vérifier la connexion
     print("Vérification de la connexion à PostgreSQL...")
     if not check_database_connection():
         sys.exit(1)
     print("Connexion OK !\n")
 
-    # Mode index uniquement
     if args.index_only:
         create_indexes()
         analyze_tables()
         sys.exit(0)
 
-    # Chercher les fichiers si --all
     if args.all:
         folder = args.all
         if not os.path.isdir(folder):
@@ -608,27 +530,23 @@ Exemples:
                 args.etablissement = os.path.join(folder, f)
                 print(f"Trouvé : {args.etablissement}")
 
-    # Sélectionner la méthode d'import
     if args.method == 'streaming':
         import_func = import_csv_streaming
     else:
         import_func = lambda fp, tn, mp: import_csv_chunked(fp, tn, mp, args.chunk_size)
 
-    # Import des unités légales (d'abord car FK)
     if args.unite_legale:
         if not os.path.exists(args.unite_legale):
             print(f"ERREUR : Fichier non trouvé : {args.unite_legale}")
             sys.exit(1)
         import_func(args.unite_legale, 'unite_legale', UNITE_LEGALE_MAPPING)
 
-    # Import des établissements
     if args.etablissement:
         if not os.path.exists(args.etablissement):
             print(f"ERREUR : Fichier non trouvé : {args.etablissement}")
             sys.exit(1)
         import_func(args.etablissement, 'etablissement', ETABLISSEMENT_MAPPING)
 
-    # Création des index
     if not args.no_index and (args.unite_legale or args.etablissement):
         create_indexes()
         analyze_tables()
